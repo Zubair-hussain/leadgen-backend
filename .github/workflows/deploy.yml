@@ -1,0 +1,103 @@
+name: Deploy to Vercel
+
+# CI/CD: every push to main runs the tests, applies database migrations, deploys to Vercel production,
+# then checks that the live API answers. A failing step stops everything after it.
+#
+# Repo secrets (Settings -> Secrets and variables -> Actions):
+#   VERCEL_TOKEN        vercel.com -> Account Settings -> Tokens -> Create
+#   VERCEL_ORG_ID       "orgId" from .vercel/project.json after `vercel link` (team/account id)
+#   VERCEL_PROJECT_ID   "projectId" from the same file (the backend project)
+#   DATABASE_URL        optional: Neon pooled string; if set, migrations run before each deploy
+#   SECRET_KEY          needed together with DATABASE_URL (same value as in Vercel)
+#   BACKEND_URL         optional: https://your-backend.vercel.app, enables the live health check
+# Without VERCEL_TOKEN the deploy steps skip and only the tests run.
+#
+# Use this OR Vercel's own Git auto-deploy, not both (you would deploy twice). To use only this workflow,
+# add  "git": { "deploymentEnabled": false }  to vercel.json.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  deploy:
+    name: Migrate and deploy
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      BACKEND_URL: ${{ secrets.BACKEND_URL }}
+    steps:
+      - name: Check secrets
+        if: ${{ env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' }}
+        run: echo "::warning::VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID not set, skipping the deploy."
+
+      - uses: actions/checkout@v4
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+
+      - uses: actions/setup-python@v5
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Apply database migrations
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' && env.DATABASE_URL != '' && env.SECRET_KEY != '' }}
+        env:
+          DEBUG: 'False'
+          ALLOWED_HOSTS: localhost
+        run: |
+          pip install -r requirements.txt
+          python manage.py migrate --noinput
+
+      - uses: actions/setup-node@v4
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+        with:
+          node-version: '20'
+
+      - name: Deploy to Vercel production
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' }}
+        run: |
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+
+      - name: Check the live API
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' && env.BACKEND_URL != '' }}
+        run: |
+          for i in 1 2 3 4 5 6; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$BACKEND_URL/api/health/" || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Health check failed: $BACKEND_URL/api/health/ did not return 200."
+          exit 1
