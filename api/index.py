@@ -11,7 +11,7 @@ from leadgen.wsgi import application  # noqa: E402
 
 def app(environ, start_response):
     # TEMPORARY diagnostic: /anything?__path_debug=1 shows what path Vercel hands to Django.
-    if environ.get('QUERY_STRING') == '__path_debug=1':
+    if '__path_debug' in environ.get('QUERY_STRING', ''):
         keep = ('X-VERCEL', 'X-MATCHED', 'X-NOW', 'X-FORWARDED-HOST', 'X-REAL', 'X-ORIGINAL')
         headers = {k[5:].replace('_', '-').lower(): v for k, v in environ.items()
                    if k.startswith('HTTP_') and k[5:].replace('_', '-').startswith(keep)}
