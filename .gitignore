@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.coverage
+coverage.xml
+htmlcov/
+staticfiles/
+media/
+logs/
+gunicorn.ctl
+.vercel
