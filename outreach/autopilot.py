@@ -155,4 +155,7 @@ def run_autopilot(now=None, force_hunt=False):
             OutreachMessage.objects.create(
                 owner=user, lead=lead, to_email=lead.email, subject='(autopilot skipped)', body='-',
                 status=OutreachMessage.Status.CANCELLED, skip_reason=f"Autopilot: {item['reason']}"[:255])
-    return f'drafted {len(created)}, skipped {len(skipped)}'
+    reasons = '; '.join(sorted({item['reason'][:80] for item in skipped}))
+    for item in skipped:
+        logger.warning('Autopilot skipped %s: %s', item['email'], item['reason'])
+    return f'drafted {len(created)}, skipped {len(skipped)}' + (f' ({reasons})' if reasons else '')
