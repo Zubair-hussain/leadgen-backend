@@ -100,7 +100,7 @@ class AutopilotTests(TestCase):
     def test_skipped_leads_are_parked(self, _claim, write_drafts):
         lead = self.lead('info@clinic.co.uk')
         write_drafts.return_value = ([], [{'lead_id': lead.pk, 'email': lead.email, 'reason': 'closed'}])
-        self.assertEqual(autopilot.run_autopilot(PKT_MORNING), 'drafted 0, skipped 1')
+        self.assertEqual(autopilot.run_autopilot(PKT_MORNING), 'drafted 0, skipped 1 (closed)')
         self.assertEqual(OutreachMessage.objects.get(lead=lead).status, 'cancelled')
         self.assertEqual(autopilot.run_autopilot(PKT_MORNING), 'no-new-leads-to-draft')
 
