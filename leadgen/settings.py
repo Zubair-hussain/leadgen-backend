@@ -219,7 +219,9 @@ SERPAPI_KEY = os.getenv('SERPAPI_KEY', '')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')
 # Tried in order when the main model is overloaded (503) or times out.
-GEMINI_FALLBACK_MODELS = os.getenv('GEMINI_FALLBACK_MODELS', 'gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash')
+GEMINI_FALLBACK_MODELS = os.getenv('GEMINI_FALLBACK_MODELS', 'gemini-3.7-flash,gemini-3.5-flash')
+# Seconds to wait for one Gemini answer. Keeps a busy Gemini from running past Vercel's 300 s limit.
+GEMINI_TIMEOUT_SECONDS = int(os.getenv('GEMINI_TIMEOUT_SECONDS', '30'))
 
 # Outreach. See docs/outreach.md for setup.
 # "gmail" (default) sends from thezubairh@gmail.com through the Gmail API; "smtp" is for a hosted mailbox;
