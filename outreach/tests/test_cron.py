@@ -39,3 +39,13 @@ class CronTickTests(TestCase):
     def test_one_failure_does_not_stop_the_rest(self, *_):
         data = self.client.get(self.url, HTTP_AUTHORIZATION='Bearer s3cret').json()
         self.assertEqual((data['queue'], data['batches'], data['followups']), ('sent', 'error', 'ok'))
+
+
+@override_settings(CRON_SECRET='s3cret')
+class AutopilotForceHuntTests(TestCase):
+    @patch('outreach.cron.run_autopilot', return_value='hunted 3 new leads: x in y')
+    def test_hunt_flag_forces_todays_hunt(self, run):
+        self.client.post('/api/outreach/cron/autopilot/?hunt=1', HTTP_AUTHORIZATION='Bearer s3cret')
+        run.assert_called_once_with(force_hunt=True)
+        self.client.post('/api/outreach/cron/autopilot/', HTTP_AUTHORIZATION='Bearer s3cret')
+        run.assert_called_with(force_hunt=False)
