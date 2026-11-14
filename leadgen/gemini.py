@@ -45,7 +45,7 @@ def _post(model, payload, timeout):
     return response
 
 
-def generate(prompt, json_output=False, temperature=0.4, timeout=60):
+def generate(prompt, json_output=False, temperature=0.4, timeout=None):
     """Return Gemini's text answer. With json_output=True, return parsed JSON.
 
     When the main model is overloaded (503) or times out, the fallback models are tried in turn.
@@ -56,6 +56,7 @@ def generate(prompt, json_output=False, temperature=0.4, timeout=60):
     if json_output:
         config['responseMimeType'] = 'application/json'
     payload = {'contents': [{'parts': [{'text': prompt}]}], 'generationConfig': config}
+    timeout = timeout or getattr(settings, 'GEMINI_TIMEOUT_SECONDS', 30)
     response, first_error = None, None
     for model in models():
         try:

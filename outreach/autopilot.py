@@ -9,6 +9,7 @@ Nothing here sends email. Drafts join the normal review batch, so you get one re
 if OUTREACH_AUTO_SEND_ENABLED is on, only drafts that pass every check are sent after the wait.
 """
 import logging
+import time as clock
 import zoneinfo
 from datetime import datetime, time, timedelta
 
@@ -29,6 +30,7 @@ from .models import OutreachMessage, SendThrottle
 logger = logging.getLogger(__name__)
 
 HUNT_KEY = 'autopilot-hunt'
+DRAFT_BUDGET_SECONDS = 120
 
 
 def targets():
@@ -159,7 +161,14 @@ def run_autopilot(now=None, force_hunt=False):
         return 'no-new-leads-to-draft'
     from .ai import write_drafts
 
-    created, skipped = write_drafts(user, leads)
+    created, skipped = [], []
+    started = clock.monotonic()
+    for lead in leads:
+        if clock.monotonic() - started > DRAFT_BUDGET_SECONDS:
+            break  # the rest wait for the next run, so the call never hits the 300 s limit
+        made, missed = write_drafts(user, [lead])
+        created += made
+        skipped += missed
     by_id = {lead.pk: lead for lead in leads}
     for item in skipped:
         if gemini.is_temporary(item['reason']):

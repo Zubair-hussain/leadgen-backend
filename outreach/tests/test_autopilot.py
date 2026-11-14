@@ -91,7 +91,8 @@ class AutopilotTests(TestCase):
             [OutreachMessage.objects.create(owner=user, lead=lead, to_email=lead.email, subject='s', body='b')
              for lead in leads], [])
         self.assertEqual(autopilot.run_autopilot(now + timedelta(minutes=30)), 'drafted 2, skipped 0')
-        self.assertEqual({lead.email for lead in write_drafts.call_args.args[1]}, {good.email, other.email})
+        drafted = {lead.email for call in write_drafts.call_args_list for lead in call.args[1]}
+        self.assertEqual(drafted, {good.email, other.email})
         self.assertEqual(autopilot.run_autopilot(now + timedelta(hours=1)), 'no-new-leads-to-draft')
         generator.return_value.generate_leads.assert_called_once()
 
