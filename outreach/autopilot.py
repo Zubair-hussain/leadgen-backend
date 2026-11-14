@@ -19,6 +19,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
+from leadgen import gemini
 from leads.models import Lead
 from leads.regions import region_of
 
@@ -117,6 +118,16 @@ def draftable_leads(user, limit):
     return result
 
 
+def release_busy_parked(user):
+    """Leads shelved only because Gemini was busy go back into the pool."""
+    parked = OutreachMessage.objects.filter(owner=user, status=OutreachMessage.Status.CANCELLED,
+                                            subject='(autopilot skipped)')
+    ids = [m.pk for m in parked.only('pk', 'skip_reason') if gemini.is_temporary(m.skip_reason)]
+    if ids:
+        OutreachMessage.objects.filter(pk__in=ids).delete()
+    return len(ids)
+
+
 def drafts_today(user, now):
     start = day_start(now)
     return (OutreachMessage.objects.filter(owner=user, parent__isnull=True, created_at__gte=start)
@@ -138,6 +149,7 @@ def run_autopilot(now=None, force_hunt=False):
     if force_hunt or _claim_hunt(now):
         return hunt(user, now)
 
+    release_busy_parked(user)
     room = settings.OUTREACH_AUTOPILOT_DRAFTS_PER_DAY - drafts_today(user, now)
     if room <= 0:
         return 'daily-drafts-done'
@@ -149,6 +161,8 @@ def run_autopilot(now=None, force_hunt=False):
     created, skipped = write_drafts(user, leads)
     by_id = {lead.pk: lead for lead in leads}
     for item in skipped:
+        if gemini.is_temporary(item['reason']):
+            continue  # Gemini was busy: the lead stays in the pool and is tried again next run
         # Park the lead with a cancelled record so it is not retried (and billed) every run.
         lead = by_id.get(item['lead_id'])
         if lead is not None:

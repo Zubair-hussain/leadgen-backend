@@ -274,3 +274,34 @@ class SendTestEmailCommandTests(TestCase):
         self.assertIn('Book a 15-min call', payload['html'])
         self.assertEqual(payload['headers']['List-Unsubscribe-Post'], 'List-Unsubscribe=One-Click')
         self.assertIn('Sent via resend', out.getvalue())
+
+
+@override_settings(OUTREACH_AUTOPILOT_ENABLED=True, OUTREACH_AUTOPILOT_OWNER='owner',
+                   OUTREACH_AUTOPILOT_TARGETS='Dentists|Leeds, UK', OUTREACH_AUTOPILOT_DRAFTS_PER_DAY=3)
+class GeminiBusyTests(TestCase):
+    def setUp(self):
+        self.user = make_user()
+        self.lead = Lead.objects.create(owner=self.user, email='info@clinic.co.uk', source='google-maps',
+                                        category='Dentists', location='Leeds', country='GB', is_verified=True)
+
+    @patch('outreach.ai.write_drafts')
+    @patch('outreach.autopilot._claim_hunt', return_value=False)
+    def test_busy_gemini_keeps_lead_and_old_parked_ones_come_back(self, _claim, write_drafts):
+        OutreachMessage.objects.create(owner=self.user, lead=self.lead, to_email=self.lead.email,
+                                       subject='(autopilot skipped)', body='-', status='cancelled',
+                                       skip_reason='Autopilot: Gemini returned 503: overloaded')
+        write_drafts.return_value = ([], [{'lead_id': self.lead.pk, 'email': self.lead.email,
+                                           'reason': 'Gemini returned 503: overloaded'}])
+        self.assertTrue(autopilot.run_autopilot(PKT_MORNING).startswith('drafted 0, skipped 1'))
+        self.assertFalse(OutreachMessage.objects.filter(lead=self.lead).exists())  # free to retry next run
+
+    @override_settings(GEMINI_API_KEY='k', GEMINI_MODEL='main', GEMINI_FALLBACK_MODELS='backup')
+    @patch('leadgen.gemini.requests.post')
+    def test_falls_back_to_next_model_when_busy(self, post):
+        from leadgen import gemini
+        busy = MagicMock(status_code=503, text='overloaded')
+        answer = {'candidates': [{'content': {'parts': [{'text': 'hi'}]}}]}
+        ok = MagicMock(status_code=200, json=lambda: answer)
+        post.side_effect = [busy, ok]
+        self.assertEqual(gemini.generate('x'), 'hi')
+        self.assertIn('/models/backup:', post.call_args.args[0])
