@@ -122,7 +122,8 @@ def release_busy_parked(user):
     """Leads shelved only because Gemini was busy go back into the pool."""
     parked = OutreachMessage.objects.filter(owner=user, status=OutreachMessage.Status.CANCELLED,
                                             subject='(autopilot skipped)')
-    ids = [m.pk for m in parked.only('pk', 'skip_reason') if gemini.is_temporary(m.skip_reason)]
+    ids = [m.pk for m in parked.only('pk', 'skip_reason')
+           if gemini.is_temporary(m.skip_reason.removeprefix('Autopilot: '))]
     if ids:
         OutreachMessage.objects.filter(pk__in=ids).delete()
     return len(ids)
