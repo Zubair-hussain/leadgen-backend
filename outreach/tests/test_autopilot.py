@@ -112,6 +112,13 @@ class AutopilotTests(TestCase):
         self.assertFalse(autopilot._claim_hunt(early + timedelta(hours=20)))  # still same PKT day
         self.assertTrue(autopilot._claim_hunt(early + timedelta(days=1, hours=1)))  # next day 07:30
 
+    @override_settings(OUTREACH_AUTOPILOT_OWNER='Boss@Example.com')
+    def test_owner_created_like_google_sign_in(self):
+        user = autopilot.owner()
+        self.assertEqual((user.username, user.email), ('bossexamplecom', 'Boss@Example.com'))
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(autopilot.owner().pk, user.pk)
+
     @override_settings(OUTREACH_AUTOPILOT_OWNER='nobody')
     def test_unknown_owner(self):
         self.assertIn('owner-not-found', autopilot.run_autopilot())

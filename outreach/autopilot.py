@@ -17,6 +17,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.text import slugify
 
 from leads.models import Lead
 from leads.regions import region_of
@@ -40,11 +41,19 @@ def targets():
 
 
 def owner():
+    """The account that owns autopilot leads. Created on first run when OUTREACH_AUTOPILOT_OWNER is an email,
+    with the same username Google sign-in uses (leads/authentication.py), so signing in later finds it."""
     name = settings.OUTREACH_AUTOPILOT_OWNER.strip()
     if not name:
         return None
     User = get_user_model()
-    return User.objects.filter(Q(username__iexact=name) | Q(email__iexact=name)).order_by('id').first()
+    user = User.objects.filter(Q(username__iexact=name) | Q(email__iexact=name)).order_by('id').first()
+    if user is None and '@' in name:
+        user, _ = User.objects.get_or_create(username=slugify(name)[:140], defaults={'email': name})
+        if user.has_usable_password():
+            user.set_unusable_password()  # Google sign-in only; no password login for this account
+            user.save(update_fields=['password'])
+    return user
 
 
 def target_for(now):
