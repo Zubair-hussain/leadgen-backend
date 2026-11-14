@@ -1,0 +1,32 @@
+name: Security scan
+
+# Every Monday 06:00 UTC and on every push to main: vulnerable Python packages (pip-audit)
+# and committed secrets (gitleaks). A finding fails the run, and GitHub emails you.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Vulnerable packages (pip-audit)
+        run: |
+          python -m pip install --quiet pip-audit
+          pip-audit -r requirements.txt
+      - name: Committed secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

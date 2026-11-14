@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="300" viewBox="0 0 820 300" role="img" aria-labelledby="t d">
+  <title id="t">Book a 15-minute call with Zubair Hussain</title>
+  <desc id="d">ZH. card: website security checks, design and layout, SEO. Book a 15-minute call.</desc>
+  <defs>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0a0a"/>
+      <stop offset="1" stop-color="#120708"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="1" cy="1" r="1">
+      <stop offset="0" stop-color="#C8141E" stop-opacity="0.6"/>
+      <stop offset="0.4" stop-color="#C8141E" stop-opacity="0.18"/>
+      <stop offset="0.75" stop-color="#C8141E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="btn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E0202B"/>
+      <stop offset="0.55" stop-color="#C8141E"/>
+      <stop offset="1" stop-color="#7A0A10"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C8141E" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#C8141E"/>
+      <stop offset="1" stop-color="#C8141E" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="btnclip"><rect x="250" y="206" width="250" height="50" rx="12"/></clipPath>
+    <style>
+      .serif { font-family: Georgia, 'Times New Roman', serif; font-style: italic; }
+      .sans { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; }
+      .mono { font-family: Menlo, Consolas, 'Courier New', monospace; }
+      .glow { animation: breathe 4s ease-in-out infinite; transform-origin: 820px 300px; }
+      @keyframes breathe { 0%,100% { opacity: .75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.08); } }
+      .dot { animation: blink 1.6s ease-in-out infinite; }
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+      .icon { animation: float 3.2s ease-in-out infinite; }
+      .i2 { animation-delay: .4s; } .i3 { animation-delay: .8s; }
+      @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+      .sweep { animation: sweep 3s ease-in-out infinite; }
+      @keyframes sweep { 0% { transform: translateX(-260px); } 60%,100% { transform: translateX(260px); } }
+      .pulse { animation: ring 2.4s ease-out infinite; transform-origin: 375px 231px; }
+      @keyframes ring { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.18, 1.5); } }
+    </style>
+  </defs>
+
+  <rect x="1" y="1" width="818" height="298" rx="20" fill="url(#ink)" stroke="#2a1214"/>
+  <rect class="glow" x="1" y="1" width="818" height="298" rx="20" fill="url(#glow)"/>
+  <rect x="1" y="1" width="4" height="298" rx="2" fill="#C8141E"/>
+
+  <!-- ZH. mark -->
+  <text x="48" y="150" class="serif" font-size="78" fill="#F5F4F0" letter-spacing="-1">ZH<tspan fill="#C8141E">.</tspan></text>
+  <rect x="200" y="44" width="1.5" height="212" fill="url(#rule)"/>
+
+  <!-- name and title -->
+  <text x="250" y="72" class="sans" font-size="26" font-weight="700" fill="#F5F4F0">Zubair Hussain</text>
+  <text x="250" y="98" class="mono" font-size="13" letter-spacing="2.5" fill="#a39f9a">FULL STACK DEVELOPER</text>
+  <circle class="dot" cx="256" cy="121" r="4" fill="#C8141E"/>
+  <text x="268" y="126" class="mono" font-size="15" fill="#F5F4F0">zubairhussain.xyz</text>
+  <rect x="268" y="131" width="152" height="1.2" fill="#C8141E"/>
+
+  <!-- services with icons -->
+  <g class="icon">
+    <path d="M262 152 l11 4 v8 c0 6 -5 10 -11 12 c-6 -2 -11 -6 -11 -12 v-8 z" fill="none" stroke="#C8141E" stroke-width="2"/>
+    <path d="M257 164 l4 4 l7 -8" fill="none" stroke="#F5F4F0" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <text x="282" y="170" class="sans" font-size="14.5" fill="#d6d2cc">Security checks</text>
+  <g class="icon i2">
+    <rect x="410" y="153" width="22" height="20" rx="3" fill="none" stroke="#C8141E" stroke-width="2"/>
+    <path d="M410 160 h22 M418 160 v13" stroke="#F5F4F0" stroke-width="2"/>
+  </g>
+  <text x="440" y="170" class="sans" font-size="14.5" fill="#d6d2cc">Design &amp; layout</text>
+  <g class="icon i3">
+    <circle cx="578" cy="161" r="8" fill="none" stroke="#C8141E" stroke-width="2"/>
+    <path d="M584 167 l6 6" stroke="#F5F4F0" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
+  <text x="598" y="170" class="sans" font-size="14.5" fill="#d6d2cc">SEO</text>
+
+  <!-- button -->
+  <rect class="pulse" x="250" y="206" width="250" height="50" rx="12" fill="none" stroke="#E0202B" stroke-width="2"/>
+  <rect x="250" y="206" width="250" height="50" rx="12" fill="url(#btn)"/>
+  <g clip-path="url(#btnclip)"><rect class="sweep" x="250" y="206" width="120" height="50" fill="url(#shine)"/></g>
+  <g transform="translate(272 220)" fill="none" stroke="#fff" stroke-width="2">
+    <rect x="0" y="2" width="20" height="18" rx="3"/>
+    <path d="M0 8 h20 M5 0 v5 M15 0 v5"/>
+  </g>
+  <text x="304" y="238" class="sans" font-size="17" font-weight="700" fill="#ffffff">Book a 15-min call →</text>
+  <text x="520" y="237" class="sans" font-size="13" fill="#a39f9a">Free · no prep needed</text>
+</svg>
