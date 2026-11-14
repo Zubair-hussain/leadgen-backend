@@ -56,4 +56,6 @@ def tick(request):
 @csrf_exempt
 @require_http_methods(['GET', 'POST'])
 def autopilot(request):
-    return _run(request, (('autopilot', run_autopilot),))
+    # ?hunt=1 re-runs today's lead hunt now (same secret required), handy after changing targets.
+    force = request.GET.get('hunt') == '1'
+    return _run(request, (('autopilot', lambda: run_autopilot(force_hunt=force)),))

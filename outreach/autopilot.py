@@ -123,7 +123,7 @@ def drafts_today(user, now):
             .exclude(status=OutreachMessage.Status.CANCELLED).count())
 
 
-def run_autopilot(now=None):
+def run_autopilot(now=None, force_hunt=False):
     """One step of the daily routine. Returns a short status string for logs."""
     if not settings.OUTREACH_AUTOPILOT_ENABLED:
         return 'disabled'
@@ -135,7 +135,7 @@ def run_autopilot(now=None):
         return 'no-targets (set OUTREACH_AUTOPILOT_TARGETS)'
     if now < day_start(now):
         return f'waiting-until-{settings.OUTREACH_AUTOPILOT_HOUR:02d}:00-{settings.OUTREACH_AUTOPILOT_TIMEZONE}'
-    if _claim_hunt(now):
+    if force_hunt or _claim_hunt(now):
         return hunt(user, now)
 
     room = settings.OUTREACH_AUTOPILOT_DRAFTS_PER_DAY - drafts_today(user, now)

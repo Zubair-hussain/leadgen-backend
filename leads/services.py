@@ -438,7 +438,7 @@ class LeadGenerator:
 
         try:
             addresses = socket.getaddrinfo(hostname, None)
-        except socket.gaierror:
+        except OSError:
             return False
 
         for address in addresses:
@@ -561,7 +561,11 @@ class LeadGenerator:
                 if not website:
                     continue
 
-                email = self._extract_active_email_from_website(website)
+                try:
+                    email = self._extract_active_email_from_website(website)
+                except OSError as exc:  # one broken website must not lose the other results
+                    logger.warning("Could not read %s: %s", website, exc)
+                    continue
                 if not email:
                     logger.debug(f"Skipping map result without active email: {res.get('title', website)}")
                     continue
@@ -576,8 +580,8 @@ class LeadGenerator:
                     "problem_statement": f"Local business: {res.get('title', '')}. May need services."
                 })
             return leads
-        except Exception as e:
-            logger.error(f"Google Maps search error: {e}")
+        except Exception:
+            logger.exception("Google Maps search error")
             return []
 
     def search_google_custom_search(self, category, niche, location, platform=None):
