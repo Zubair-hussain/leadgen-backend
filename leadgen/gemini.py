@@ -23,9 +23,10 @@ BUSY_CODES = {429, 500, 502, 503, 504}
 
 
 def is_temporary(error):
-    """True for overload / timeout errors that are worth retrying later."""
+    """True when Gemini itself failed (busy, timeout, model missing), not the content: worth retrying later."""
     text = str(error)
-    return 'request failed' in text or any(f'returned {code}' in text for code in BUSY_CODES)
+    return text.startswith(('Gemini returned', 'Gemini request failed', 'GEMINI_API_KEY')) or (
+        'request failed' in text or any(f'returned {code}' in text for code in BUSY_CODES))
 
 
 def models():
@@ -55,18 +56,16 @@ def generate(prompt, json_output=False, temperature=0.4, timeout=60):
     if json_output:
         config['responseMimeType'] = 'application/json'
     payload = {'contents': [{'parts': [{'text': prompt}]}], 'generationConfig': config}
-    response, last_error = None, None
+    response, first_error = None, None
     for model in models():
         try:
             response = _post(model, payload, timeout)
             break
         except GeminiError as exc:
-            last_error = exc
-            if not is_temporary(exc):
-                raise
-            logger.warning('Gemini model %s busy (%s); trying the next one', model, str(exc)[:80])
+            first_error = first_error or exc
+            logger.warning('Gemini model %s failed (%s); trying the next one', model, str(exc)[:80])
     if response is None:
-        raise last_error
+        raise first_error
     try:
         text = response.json()['candidates'][0]['content']['parts'][0]['text'].strip()
     except (KeyError, IndexError, ValueError) as exc:
