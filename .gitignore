@@ -11,3 +11,6 @@ media/
 logs/
 gunicorn.ctl
 .vercel
+
+# Wrangler local cache (contains your Cloudflare account id)
+.wrangler/
