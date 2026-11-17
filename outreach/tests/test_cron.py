@@ -49,3 +49,18 @@ class AutopilotForceHuntTests(TestCase):
         run.assert_called_once_with(force_hunt=True)
         self.client.post('/api/outreach/cron/autopilot/', HTTP_AUTHORIZATION='Bearer s3cret')
         run.assert_called_with(force_hunt=False)
+
+
+@override_settings(CRON_SECRET='s3cret')
+class PipelineStatusTests(TestCase):
+    def test_needs_secret_and_returns_counts_only(self):
+        from django.contrib.auth import get_user_model
+
+        from outreach.models import OutreachMessage
+        self.assertEqual(self.client.get('/api/outreach/cron/status/').status_code, 401)
+        owner = get_user_model().objects.create_user(username='o', password='x')
+        OutreachMessage.objects.create(owner=owner, to_email='a@shop.com', subject='s', body='b', status='queued')
+        data = self.client.get('/api/outreach/cron/status/', HTTP_AUTHORIZATION='Bearer s3cret').json()['pipeline']
+        self.assertEqual(data['messages'], {'queued': 1})
+        self.assertIn('open_send_regions', data)
+        self.assertNotIn('a@shop.com', str(data))

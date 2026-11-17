@@ -1,0 +1,13 @@
+name = "leadgen-scheduler"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+workers_dev = false
+
+[vars]
+BACKEND_URL = "https://leadgen-backend-nu.vercel.app"
+
+[triggers]
+crons = ["*/5 * * * *", "*/30 * * * *"]
+
+[observability]
+enabled = true
