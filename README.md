@@ -105,8 +105,8 @@ flowchart LR
 
 **Why it is shaped this way**
 
-- **No always-on server.** Vercel has no background workers, so a free GitHub Actions cron calls two
-  small endpoints. Each call does one bounded step and returns. With Celery + Redis (Docker) the same
+- **No always-on server.** Vercel has no background workers, so a free Cloudflare Worker cron (GitHub Actions
+  as backup, but its schedule is throttled) calls two small endpoints. Each call does one bounded step and returns. With Celery + Redis (Docker) the same
   jobs run from Celery Beat instead.
 - **One email per tick.** A database row lock (`SendThrottle`) plus random 3-8 minute gaps make the
   sending pattern look like a person, and two overlapping ticks can never double-send.
@@ -257,6 +257,7 @@ Every row below happened while taking this to production. The [closed issues](ht
 | `Gemini returned 503/429` | model overloaded or rate limited | automatic fallback to other flash models; leads are kept for retry, never shelved |
 | `Task timed out after 300 seconds` | slow Gemini × retries | 30 s per request and a 2-minute drafting budget per run |
 | `invalid literal for int() … ''` at build | env vars saved empty by an old CLI syntax | set with `vercel env add NAME --environment production --value …` |
+| Emails approved but never sent, `sent_today: 0` | GitHub's `*/5` cron ran ~4 times a day, so no call landed in the send window | `cloudflare/scheduler/` Worker: real 5-minute trigger. Check with `GET /api/outreach/cron/status/` |
 | New endpoints return 404 | the monorepo was deployed instead of this repo | deploy this repo only (Vercel Git integration) |
 
 ## Pro tip: find bugs faster
