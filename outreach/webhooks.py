@@ -45,7 +45,9 @@ def handle_event(event):
     kind = event.get('type', '')
     data = event.get('data') or {}
     reason = {'email.bounced': Suppression.Reason.BOUNCE,
-              'email.complained': Suppression.Reason.COMPLAINT}.get(kind)
+              'email.complained': Suppression.Reason.COMPLAINT,
+              # Resend refused to send because the address is on its own suppression list (earlier bounce).
+              'email.suppressed': Suppression.Reason.BOUNCE}.get(kind)
     if reason is None:
         return 'ignored'
     message = OutreachMessage.objects.filter(gmail_message_id=data.get('email_id', '')).select_related('parent').first()

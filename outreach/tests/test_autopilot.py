@@ -306,3 +306,22 @@ class GeminiBusyTests(TestCase):
         post.side_effect = [busy, ok]
         self.assertEqual(gemini.generate('x'), 'hi')
         self.assertIn('/models/backup:', post.call_args.args[0])
+
+
+class PlaceholderAndSuppressedTests(TestCase):
+    def test_template_placeholder_addresses_are_not_leads(self):
+        from leads.services import EmailVerifier
+        for bad in ('name@domain.com', 'user@yourdomain.com', 'abc123@sentry.io', 'yourname@realshop.com'):
+            self.assertFalse(EmailVerifier.is_valid_syntax(bad), bad)
+        self.assertTrue(EmailVerifier.is_valid_syntax('info@duncanrealestateco.com'))
+
+    @override_settings(RESEND_WEBHOOK_SECRET=SECRET)
+    def test_resend_suppressed_event_blocks_the_address(self):
+        user = make_user('hooked')
+        OutreachMessage.objects.create(owner=user, to_email='ghost@shop.com', subject='s', body='b',
+                                       status='sent', gmail_message_id='em_sup')
+        body = json.dumps({'type': 'email.suppressed', 'data': {'email_id': 'em_sup'}}).encode()
+        response = self.client.post('/api/outreach/webhooks/resend/', body, content_type='application/json',
+                                    **signed(body))
+        self.assertEqual(response.json(), {'result': 'suppressed'})
+        self.assertEqual(Suppression.objects.get(owner=user).email, 'ghost@shop.com')

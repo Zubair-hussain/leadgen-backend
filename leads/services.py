@@ -23,7 +23,16 @@ class EmailVerifier:
 
     INVALID_DOMAINS = {
         'noemail.com', 'noemail.local', 'example.com', 'example.org',
-        'example.net', 'test.com', 'localhost', 'invalid'
+        'example.net', 'test.com', 'localhost', 'invalid',
+        # Placeholders copied from website templates and JavaScript bundles, never a real inbox.
+        'domain.com', 'domain.org', 'domain.net', 'yourdomain.com', 'yourdomain.org', 'your-domain.com',
+        'yoursite.com', 'yourwebsite.com', 'mysite.com', 'mydomain.com', 'email.com', 'sample.com',
+        'website.com', 'company.com', 'sentry.io', 'wixpress.com',
+    }
+    PLACEHOLDER_LOCAL_PARTS = {
+        'name', 'yourname', 'your.name', 'your-name', 'youremail', 'your.email', 'email', 'user', 'username',
+        'firstname', 'first.last', 'firstname.lastname', 'johndoe', 'john.doe', 'janedoe', 'jane.doe',
+        'example', 'sample', 'test',
     }
     INVALID_EMAIL_PATTERNS = [
         r'noreply', r'no-reply', r'do-not-reply', r'support@twitter',
@@ -48,8 +57,8 @@ class EmailVerifier:
         if not email or email == "n/a" or '@' not in email:
             return False
 
-        domain = email.split('@')[-1].lower()
-        if domain in EmailVerifier.INVALID_DOMAINS:
+        local, domain = email.rsplit('@', 1)[0].lower(), email.split('@')[-1].lower()
+        if domain in EmailVerifier.INVALID_DOMAINS or local in EmailVerifier.PLACEHOLDER_LOCAL_PARTS:
             return False
 
         for pattern in EmailVerifier.INVALID_EMAIL_PATTERNS:

@@ -67,6 +67,13 @@ def pipeline_status():
     def tally(queryset, field):
         return {row[field]: row['n'] for row in queryset.values(field).annotate(n=Count('pk'))}
 
+    def tally_regions(queryset):
+        counts = {}
+        for message in queryset[:200]:
+            region = compliance.message_region(message) or 'unknown'
+            counts[region] = counts.get(region, 0) + 1
+        return counts
+
     now = timezone.now()
     throttle = SendThrottle.objects.filter(key='gmail').first()
     return {
@@ -77,6 +84,7 @@ def pipeline_status():
         'oldest_pending_batch_auto_send_at': next(
             (b.auto_send_at.isoformat() for b in OutreachBatch.objects.filter(status='pending').order_by('created_at')[:1]
              if b.auto_send_at), None),
+        'queued_by_region': tally_regions(OutreachMessage.objects.filter(status='queued').select_related('lead')),
         'sent_today': services.sent_counts(now)['today'],
         'next_send_at': throttle.next_send_at.isoformat() if throttle else None,
         'open_send_regions': [r or 'any' for r in ('',) + compliance.REGIONS if services.in_send_window(now, r)],
