@@ -89,3 +89,32 @@ class GeminiOutageRetryTests(TestCase):
         batch = self.held_batch('info@a.co.uk')
         self.age(batch, 60 * 24 * 5)
         self.assertEqual(batches.release_gemini_holds(), [])
+
+
+@override_settings(GEMINI_API_KEY='key-one', GEMINI_API_KEYS=['key-two', 'key-one'], GEMINI_MODEL='main',
+                   GEMINI_FALLBACK_MODELS='backup')
+class GeminiKeyRotationTests(TestCase):
+    OK = {'candidates': [{'content': {'parts': [{'text': 'hi'}]}}]}
+
+    def reply(self, status, text=''):
+        from unittest.mock import MagicMock
+        return MagicMock(status_code=status, text=text, json=lambda: self.OK)
+
+    def test_keys_are_deduplicated_and_ordered(self):
+        self.assertEqual(gemini.api_keys(), ['key-one', 'key-two'])
+
+    @patch('leadgen.gemini.requests.post')
+    def test_quota_error_switches_to_the_next_key_on_the_same_model(self, post):
+        post.side_effect = [self.reply(429, 'quota'), self.reply(200)]
+        self.assertEqual(gemini.generate('x'), 'hi')
+        first, second = post.call_args_list
+        self.assertEqual((first.kwargs['headers']['x-goog-api-key'], second.kwargs['headers']['x-goog-api-key']),
+                         ('key-one', 'key-two'))
+        self.assertTrue(first.args[0].endswith('main:generateContent') and second.args[0].endswith('main:generateContent'))
+
+    @patch('leadgen.gemini.requests.post')
+    def test_overload_goes_to_the_next_model_not_the_next_key(self, post):
+        post.side_effect = [self.reply(503, 'busy'), self.reply(200)]
+        gemini.generate('x')
+        self.assertTrue(post.call_args_list[1].args[0].endswith('backup:generateContent'))
+        self.assertEqual(post.call_args_list[1].kwargs['headers']['x-goog-api-key'], 'key-one')

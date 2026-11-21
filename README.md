@@ -233,6 +233,7 @@ Every push to `main` deploys automatically.
 | `OUTREACH_BOOKING_URL` / `OUTREACH_SERVICES` | `https://…` / `Website security checks,Design & layout,SEO` | signature card |
 | `OUTREACH_IMAP_HOST` / `_USER` / `_PASSWORD` | `imap.gmail.com` / `you@gmail.com` / app password | read replies |
 | `OUTREACH_WEEKLY_REPORT_ENABLED` / `OUTREACH_REPORT_TIMEZONE` / `_HOUR` | `True` / `Asia/Karachi` / `18` | Sunday report |
+| `GEMINI_API_KEYS` | `key2,key3` | extra keys (from a different Google project). A quota error (429) tries the next key; an overload (503) tries the next model |
 | `GEMINI_MODEL` / `GEMINI_FALLBACK_MODELS` / `GEMINI_TIMEOUT_SECONDS` | `gemini-3-flash-preview` / `gemini-3.1-flash-lite,gemini-3.5-flash` / `30` | AI writer. Newest models are often overloaded (503): test with a few calls and pick the one that answers. |
 | `SERPAPI_KEY`, `GEMINI_API_KEY`, `DATABASE_URL`, `SECRET_KEY`, `CRON_SECRET`, `ADMIN_URL` | | secrets: set as *sensitive* in Vercel |
 
