@@ -1,11 +1,12 @@
 from django.urls import path
 
-from . import cron, review, unsubscribe, views, webhooks
+from . import audit_page, cron, review, unsubscribe, views, webhooks
 
 urlpatterns = [
     path('cron/tick/', cron.tick, name='outreach-cron-tick'),
     path('cron/autopilot/', cron.autopilot, name='outreach-cron-autopilot'),
     path('cron/status/', cron.status, name='outreach-cron-status'),
+    path('audit/<str:token>/', audit_page.audit_report, name='outreach-audit'),
     path('unsubscribe/<str:token>/', unsubscribe.unsubscribe_view, name='outreach-unsubscribe'),
     path('webhooks/resend/', webhooks.resend_webhook, name='outreach-resend-webhook'),
     path('status/', views.OutreachStatusView.as_view(), name='outreach-status'),

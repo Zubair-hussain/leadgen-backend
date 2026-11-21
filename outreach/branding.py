@@ -36,9 +36,11 @@ def signature_text():
     return '\n'.join(lines)
 
 
-def text_version(body, region='', source='', unsubscribe_url=''):
+def text_version(body, region='', source='', unsubscribe_url='', audit_url=''):
     """Plain-text part: body, signature, then the opt-out line and the legal footer."""
     parts = [body.rstrip()]
+    if audit_url:
+        parts.append(f'I put together a short free check, with the evidence for each point:\n{audit_url}')
     signature = signature_text()
     if signature:
         parts.append(signature)
@@ -74,7 +76,7 @@ def _signature_context():
     }
 
 
-def html_version(subject, body, region='', source='', unsubscribe_url=''):
+def html_version(subject, body, region='', source='', unsubscribe_url='', audit_url=''):
     paragraphs = [p.strip() for p in re.split(r'\n\s*\n', body.strip()) if p.strip()]
     return render_to_string('outreach/email/cold.html', {
         'subject': subject,
@@ -83,6 +85,7 @@ def html_version(subject, body, region='', source='', unsubscribe_url=''):
         'opt_out': settings.OUTREACH_OPT_OUT_LINE.strip(),
         'footer_lines': compliance.footer_lines(region, source),
         'unsubscribe_url': unsubscribe_url,
+        'audit_url': audit_url,
         **_signature_context(),
     })
 
@@ -92,7 +95,8 @@ def signature_html():
     return render_to_string('outreach/email/_signature.html', _signature_context())
 
 
-def compose(subject, body, region='', source='', unsubscribe_url=''):
+def compose(subject, body, region='', source='', unsubscribe_url='', audit_url=''):
     """Return (text, html). html is None when OUTREACH_HTML_EMAIL is off."""
-    return (text_version(body, region, source, unsubscribe_url),
-            html_version(subject, body, region, source, unsubscribe_url) if settings.OUTREACH_HTML_EMAIL else None)
+    return (text_version(body, region, source, unsubscribe_url, audit_url),
+            html_version(subject, body, region, source, unsubscribe_url, audit_url)
+            if settings.OUTREACH_HTML_EMAIL else None)
