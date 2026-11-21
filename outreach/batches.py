@@ -226,7 +226,30 @@ def unsure_reason(message):
     return '' if approved else reason
 
 
-def auto_approve_batch(batch_id):
+GEMINI_DOWN = 'Gemini review unavailable'
+RETRY_AFTER = timedelta(minutes=20)
+RETRY_WINDOW = timedelta(days=3)
+
+
+def release_gemini_holds(now=None):
+    """Put batches held only because Gemini was down back in line for the auto-send policy.
+
+    A held batch is otherwise never looked at again, so one overloaded minute would strand good emails.
+    Retried at most every 20 minutes, and only for 3 days. Returns the ids released.
+    """
+    now = now or timezone.now()
+    released = []
+    held = OutreachBatch.objects.filter(status=OutreachBatch.Status.HELD, decided_at__lte=now - RETRY_AFTER,
+                                        decided_at__gte=now - RETRY_WINDOW)
+    for batch in held:
+        if batch.messages.filter(status=Status.DRAFT, hold_reason__startswith=GEMINI_DOWN).exists():
+            batch.status, batch.auto_send_at = OutreachBatch.Status.PENDING, now
+            batch.save(update_fields=['status', 'auto_send_at'])
+            released.append(batch.pk)
+    return released
+
+
+def auto_approve_batch(batch_id, retry=False):
     """Run the policy for a batch the admin never answered. Returns the batch or None."""
     batch = _claim(batch_id, OutreachBatch.Status.HELD)
     if batch is None:
@@ -247,8 +270,10 @@ def auto_approve_batch(batch_id):
     lines += [f"- HELD: {m.to_email}: {m.hold_reason}" for m in held]
     batch.summary = "\n".join(lines)
     batch.save(update_fields=['status', 'summary'])
-    _send_admin_email(f"[Auto-send] {len(queued)} queued, {len(held)} held back",
-                      batch.summary + (f"\n\nReview the held ones here:\n{batch_url(batch)}" if held else ''))
+    gemini_still_down = retry and not queued and any(m.hold_reason.startswith(GEMINI_DOWN) for m in held)
+    if not gemini_still_down:  # a retry that fails again for the same reason is not worth another email
+        _send_admin_email(f"[Auto-send] {len(queued)} queued, {len(held)} held back",
+                          batch.summary + (f"\n\nReview the held ones here:\n{batch_url(batch)}" if held else ''))
     return batch
 
 
@@ -257,10 +282,11 @@ def run_auto_sends(now=None):
     if not settings.OUTREACH_AUTO_SEND_ENABLED:
         return []
     now = now or timezone.now()
+    released = set(release_gemini_holds(now))
     due = OutreachBatch.objects.filter(
         status=OutreachBatch.Status.PENDING, auto_send_at__lte=now, notified_at__isnull=False,
     ).values_list('pk', flat=True)
-    return [b for b in (auto_approve_batch(pk) for pk in due) if b]
+    return [b for b in (auto_approve_batch(pk, retry=pk in released) for pk in due) if b]
 
 
 def process_batches(now=None):
