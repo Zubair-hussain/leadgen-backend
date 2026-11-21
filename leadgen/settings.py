@@ -219,6 +219,8 @@ SERPAPI_KEY = os.getenv('SERPAPI_KEY', '')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')
 # Tried in order when the main model is overloaded (503) or times out.
+# Extra keys, comma separated. On a quota error (429) the next key is tried before the next model.
+GEMINI_API_KEYS = env_list('GEMINI_API_KEYS', '')
 GEMINI_FALLBACK_MODELS = os.getenv('GEMINI_FALLBACK_MODELS', 'gemini-3.7-flash,gemini-3.5-flash')
 # Seconds to wait for one Gemini answer. Keeps a busy Gemini from running past Vercel's 300 s limit.
 GEMINI_TIMEOUT_SECONDS = int(os.getenv('GEMINI_TIMEOUT_SECONDS', '30'))

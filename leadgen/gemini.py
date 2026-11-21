@@ -34,9 +34,15 @@ def models():
     return [settings.GEMINI_MODEL] + [m for m in fallbacks if m != settings.GEMINI_MODEL]
 
 
-def _post(model, payload, timeout):
+def api_keys():
+    """The main key plus any extras from GEMINI_API_KEYS (a second Google project doubles the quota)."""
+    keys = [settings.GEMINI_API_KEY] + list(getattr(settings, 'GEMINI_API_KEYS', []))
+    return [k for i, k in enumerate(keys) if k and k not in keys[:i]]
+
+
+def _post(model, payload, timeout, key):
     try:
-        response = requests.post(URL.format(model=model), headers={'x-goog-api-key': settings.GEMINI_API_KEY},
+        response = requests.post(URL.format(model=model), headers={'x-goog-api-key': key},
                                  json=payload, timeout=timeout)
     except requests.RequestException as exc:
         raise GeminiError(f'Gemini request failed: {exc}') from exc
@@ -50,7 +56,8 @@ def generate(prompt, json_output=False, temperature=0.4, timeout=None):
 
     When the main model is overloaded (503) or times out, the fallback models are tried in turn.
     """
-    if not settings.GEMINI_API_KEY:
+    keys = api_keys()
+    if not keys:
         raise GeminiError('GEMINI_API_KEY is not set.')
     config = {'temperature': temperature, 'thinkingConfig': {'thinkingBudget': 0}}
     if json_output:
@@ -59,12 +66,17 @@ def generate(prompt, json_output=False, temperature=0.4, timeout=None):
     timeout = timeout or getattr(settings, 'GEMINI_TIMEOUT_SECONDS', 30)
     response, first_error = None, None
     for model in models():
-        try:
-            response = _post(model, payload, timeout)
+        for number, key in enumerate(keys, 1):
+            try:
+                response = _post(model, payload, timeout, key)
+                break
+            except GeminiError as exc:
+                first_error = first_error or exc
+                logger.warning('Gemini model %s with key %s failed (%s)', model, number, str(exc)[:80])
+                if 'returned 429' not in str(exc):
+                    break  # overload or an error that another key will not fix: try the next model
+        if response is not None:
             break
-        except GeminiError as exc:
-            first_error = first_error or exc
-            logger.warning('Gemini model %s failed (%s); trying the next one', model, str(exc)[:80])
     if response is None:
         raise first_error
     try:
