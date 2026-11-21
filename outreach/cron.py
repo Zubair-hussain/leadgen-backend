@@ -62,7 +62,7 @@ def pipeline_status():
     from leads.models import Lead
 
     from . import services
-    from .models import OutreachBatch, OutreachMessage, SendThrottle
+    from .models import LeadAudit, OutreachBatch, OutreachMessage, SendThrottle
 
     def tally(queryset, field):
         return {row[field]: row['n'] for row in queryset.values(field).annotate(n=Count('pk'))}
@@ -85,6 +85,8 @@ def pipeline_status():
             (b.auto_send_at.isoformat() for b in OutreachBatch.objects.filter(status='pending').order_by('created_at')[:1]
              if b.auto_send_at), None),
         'queued_by_region': tally_regions(OutreachMessage.objects.filter(status='queued').select_related('lead')),
+        'held_reasons': tally(OutreachMessage.objects.filter(status='draft').exclude(hold_reason=''), 'hold_reason'),
+        'audits': LeadAudit.objects.count(),
         'sent_today': services.sent_counts(now)['today'],
         'next_send_at': throttle.next_send_at.isoformat() if throttle else None,
         'open_send_regions': [r or 'any' for r in ('',) + compliance.REGIONS if services.in_send_window(now, r)],

@@ -47,8 +47,10 @@ someone replies, and emails you a report every Sunday.
 | --- | --- |
 | 🔎 **Finds leads** | Google Maps (SerpAPI) by niche and city, rotating through your target list. Reads each business website for a real, working email (MX checked). Optional Apify deep crawl, Yelp, Nextdoor, True Local. |
 | ✍️ **Writes like a person** | Gemini drafts a 50-100 word email that opens with *their* business and offers the one service that fits: no website → design & layout, has a website → a free security check or SEO check. A humanizer and a playbook score (Cold Email Hall of Fame rules) reject anything robotic. |
+| 🧾 **Shows proof, not promises** | Before drafting, a read-only public check of the lead's own website (HTTPS, certificate, security headers, SEO, mobile, speed) stores the evidence. The email links to a private ZH. branded report with every finding, **how to verify it yourself**, three packages and a book-a-call button. Sites that already pass everything are skipped, so your 5 daily emails go where the evidence shows something to fix. |
+| 📞 **No-website businesses** | A business with no website has no email we can lawfully find (emails are only read from a business's own published site). They are saved as phone-only leads and listed in the Sunday report for you to call or message yourself. Free-builder sites (`*.wixsite.com`, `*.business.site`...) are drafted first. |
 | ✅ **Asks you first** | Drafts are grouped into **one** review email. Approve, edit or reject in one click, or let auto-send release only the drafts that pass every check after a few hours. |
-| 📬 **Sends like a person** | From `hello@yourdomain` through Resend: 5 a day, 3-8 random minutes apart, 07:00-11:00 in the **lead's** time zone, weekdays only. |
+| 📬 **Sends like a person** | From `hello@yourdomain` through Resend: 5 a day, **30-50 minutes apart** (never a burst), 07:00-11:00 in the **lead's** time zone, weekdays only. |
 | 🔁 **Follows up politely** | Up to 3 follow-ups in the same thread (days 3, 4, 7), stopped instantly by a reply, a bounce or an unsubscribe. |
 | 🛡️ **Protects your domain** | One-click unsubscribe (RFC 8058), bounce and spam-complaint webhook, per-day and per-hour caps. |
 | 📊 **Reports to you** | Every Sunday 18:00: emails sent, replies, reply rate, new leads, bounces, opt-outs, sent per day, health warnings. |
@@ -108,7 +110,7 @@ flowchart LR
 - **No always-on server.** Vercel has no background workers, so a free Cloudflare Worker cron (GitHub Actions
   as backup, but its schedule is throttled) calls two small endpoints. Each call does one bounded step and returns. With Celery + Redis (Docker) the same
   jobs run from Celery Beat instead.
-- **One email per tick.** A database row lock (`SendThrottle`) plus random 3-8 minute gaps make the
+- **One email per tick.** A database row lock (`SendThrottle`) plus 30-50 minute gaps make the
   sending pattern look like a person, and two overlapping ticks can never double-send.
 - **The database is the state machine.** Every message moves `draft → queued → sending → sent`
   (or `skipped` / `failed` / `cancelled`), so a crashed or timed-out call simply resumes next tick.
@@ -164,6 +166,7 @@ secret the attacker does not have.
 | **Forging bounce events** | The Resend webhook verifies the Svix HMAC-SHA256 signature and rejects anything older than 5 minutes (replay protection). |
 | **Guessing review or unsubscribe links** | Links carry a Django-signed token, not a bare id. Tampering → 400. Review links expire after 7 days. |
 | **Link scanners unsubscribing people** | GET only shows a confirm button; only a POST (button or mail-app one-click) unsubscribes. |
+| **The site check being abused** | It is passive: one GET of the home page, robots.txt, sitemap.xml, one http probe and one TLS handshake, the same as a browser. No logins, no scanning for weaknesses. Reports open only with a signed token, are `noindex`, and run with a script-free CSP. |
 | **Using the crawler to reach internal services (SSRF)** | Website fetches resolve DNS first and refuse private, loopback, link-local and reserved IPs, also after redirects. |
 | **Prompt injection from scraped websites** | Gemini prompts mark lead facts as *data, not instructions*; an independent Gemini review plus the humanizer and playbook gates must all pass before auto-send. |
 | **Script injection on server pages** | Strict CSP with no script source at all, `X-Frame-Options: DENY`, `nosniff`, HSTS in production. |
@@ -185,6 +188,8 @@ Vercel keeps deploying, and GitHub Actions minutes for private repos are still f
 | POST | `/api/deliverability/check/` | JWT | SPF/DMARC/DKIM inbox-risk score |
 | GET | `/api/outreach/status/` | JWT | queue, limits, transport |
 | POST | `/api/outreach/ai-drafts/` | JWT | draft emails for chosen leads |
+| GET | `/api/outreach/audit/<token>/` | signed token (90 days) | the lead's private report: findings, evidence, packages, book a call |
+| GET | `/api/outreach/cron/status/` | `CRON_SECRET` | counts only: queue by region, held reasons, audits, next send |
 | POST | `/api/outreach/cron/tick/` | `CRON_SECRET` | send · batch · follow-ups · Sunday report |
 | POST | `/api/outreach/cron/autopilot/` (`?hunt=1` to re-hunt now) | `CRON_SECRET` | find leads · write drafts |
 | POST | `/api/outreach/webhooks/resend/` | Svix signature | bounces and complaints |
@@ -216,6 +221,9 @@ Every push to `main` deploys automatically.
 | `OUTREACH_DRY_RUN` | `True` | everything runs, nothing leaves |
 | `OUTREACH_DAILY_MIN` / `OUTREACH_DAILY_LIMIT` / `OUTREACH_HOURLY_LIMIT` | `5` / `5` / `5` | caps |
 | `OUTREACH_SEND_HOUR_START` / `_END` / `OUTREACH_WEEKDAYS_ONLY` | `7` / `11` / `True` | window, in each lead's time zone |
+| `OUTREACH_MIN_DELAY_SECONDS` / `_MAX_DELAY_SECONDS` / `OUTREACH_HOURLY_LIMIT` | `1800` / `3000` / `2` | gap between emails (30-50 min) and max per hour |
+| `OUTREACH_PUBLIC_URL` | `https://check.yourdomain.com` | address used in email links; a custom domain looks better to spam filters than `*.vercel.app` |
+| `OUTREACH_PACKAGES` | `[{"name":"Starter","tag":"...","items":["..."],"price":"$300"}]` | replaces the default packages (no prices unless you set them) |
 | `OUTREACH_SEND_TIMEZONE` | *(empty)* | set e.g. `Asia/Karachi` to use one clock for everyone |
 | `OUTREACH_AUTOPILOT_ENABLED` / `_OWNER` | `True` / `you@gmail.com` | daily hunt + drafts, owner account |
 | `OUTREACH_AUTOPILOT_TARGETS` | `dentists\|Austin, TX; cafes\|Melbourne, VIC` | one target per day, rotating |
@@ -225,7 +233,7 @@ Every push to `main` deploys automatically.
 | `OUTREACH_BOOKING_URL` / `OUTREACH_SERVICES` | `https://…` / `Website security checks,Design & layout,SEO` | signature card |
 | `OUTREACH_IMAP_HOST` / `_USER` / `_PASSWORD` | `imap.gmail.com` / `you@gmail.com` / app password | read replies |
 | `OUTREACH_WEEKLY_REPORT_ENABLED` / `OUTREACH_REPORT_TIMEZONE` / `_HOUR` | `True` / `Asia/Karachi` / `18` | Sunday report |
-| `GEMINI_MODEL` / `GEMINI_FALLBACK_MODELS` / `GEMINI_TIMEOUT_SECONDS` | `gemini-3.8-flash` / `gemini-3.7-flash,gemini-3.5-flash` / `30` | AI writer |
+| `GEMINI_MODEL` / `GEMINI_FALLBACK_MODELS` / `GEMINI_TIMEOUT_SECONDS` | `gemini-3-flash-preview` / `gemini-3.1-flash-lite,gemini-3.5-flash` / `30` | AI writer. Newest models are often overloaded (503): test with a few calls and pick the one that answers. |
 | `SERPAPI_KEY`, `GEMINI_API_KEY`, `DATABASE_URL`, `SECRET_KEY`, `CRON_SECRET`, `ADMIN_URL` | | secrets: set as *sensitive* in Vercel |
 
 </details>
@@ -254,6 +262,7 @@ Every row below happened while taking this to production. The [closed issues](ht
 | `relation "auth_user" does not exist` | migrations never ran on the new database | Actions → Database migrate |
 | `owner-not-found` | fresh database has no users | autopilot now creates the owner exactly like Google sign-in |
 | `hunted 0 new leads` + `[Errno 16] Device or resource busy` | one website crashed the whole Maps search | each website is now isolated; full traceback logged |
+| Newest Gemini model answers 0 of 3 test calls | brand-new models are capacity-limited | pick the model that answers (`gemini-3-flash-preview` was 3/3, ~1 s) and keep two fallbacks |
 | `Gemini returned 503/429` | model overloaded or rate limited | automatic fallback to other flash models; leads are kept for retry, never shelved |
 | `Task timed out after 300 seconds` | slow Gemini × retries | 30 s per request and a 2-minute drafting budget per run |
 | `invalid literal for int() … ''` at build | env vars saved empty by an old CLI syntax | set with `vercel env add NAME --environment production --value …` |
