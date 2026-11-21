@@ -402,6 +402,7 @@ class LeadGenerator:
         self.google_cx = os.getenv('GOOGLE_CX')
         self.apify_key = os.getenv('APIFY_API_KEY')
         self.gemini_key = os.getenv('GEMINI_API_KEY')
+        self.no_website = []  # Maps businesses with no website of their own: no email source, phone only
 
     def _extract_emails_from_text(self, text):
         """Return syntax-valid, deduplicated emails from text/html."""
@@ -568,6 +569,9 @@ class LeadGenerator:
                 website = res.get("website", "")
                 phone = res.get("phone", "")
                 if not website:
+                    self.no_website.append({'title': res.get('title', ''), 'phone': phone, 'link': '',
+                                            'address': res.get('address', ''), 'rating': res.get('rating'),
+                                            'reviews': res.get('reviews')})
                     continue
 
                 try:
@@ -825,7 +829,33 @@ class LeadGenerator:
             leads_to_save = self.filter_leads_with_ai(leads_to_save, category, niche, target_location)
             logger.info(f"[LeadGen] Total leads after AI filter: {len(leads_to_save)}")
 
-        return self._save_leads(leads_to_save, category, owner=owner)
+        saved = self._save_leads(leads_to_save, category, owner=owner)
+        self._save_no_website(owner, category)
+        return saved
+
+    def _save_no_website(self, owner, category):
+        """Keep businesses that have no website of their own as phone-only leads (never emailed).
+
+        Their Google listing has no email and this app only reads emails from a business's own website, so
+        the weekly report lists them for you to call or message yourself.
+        """
+        if owner is None:
+            return 0
+        saved = 0
+        for item in self.no_website:
+            phone = (item.get('phone') or '')[:20]
+            if not phone or Lead.objects.filter(owner=owner, email__isnull=True, phone=phone).exists():
+                continue
+            facts = f"{item.get('reviews') or 0} reviews, {item.get('rating') or 'no'} stars"
+            Lead.objects.create(
+                owner=owner, email=None, phone=phone, source='google-maps', category=category, service=category,
+                location=item.get('address') or '', link=item.get('link') or '',
+                country=regions.detect_country('', item.get('address') or '', phone, '', ''),
+                problem_statement=f"Local business: {item.get('title', '')}. No website of its own ({facts}). "
+                                  "No email found, so contact by phone.",
+                is_verified=False)
+            saved += 1
+        return saved
 
     def _search_platform(self, category, platform, niche, location):
         """Platform-specific search using SerpAPI"""

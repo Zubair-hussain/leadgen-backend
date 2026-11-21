@@ -6,7 +6,7 @@ from django.conf import settings
 
 from leadgen import gemini
 
-from . import humanizer, playbook, research
+from . import audit, humanizer, playbook, research
 from .models import OutreachMessage
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ Facts you may use (use NOTHING else, invent nothing):
 - Recipient location: {location}
 - Sender portfolio link: {portfolio}
 {research_facts}
+{audit_facts}
 Shape (this is what made the cold emails in the Cold Email Hall of Fame get answers):
 1. Open with THEM, not you: one line about their business from the facts above (name, trade, town, rating).
 2. One line on who you are, in plain words.
@@ -48,7 +49,8 @@ Shape (this is what made the cold emails in the Cold Email Hall of Fame get answ
    {services}
    No website listed: offer a simple site design and layout. Already has a website: offer a free quick
    security check of the site (outdated software, missing HTTPS or security headers) or a quick SEO check
-   of how they show up on Google. Never claim you already ran the check or found a problem.
+   of how they show up on Google.
+   {audit_rule}
 4. End with ONE easy question they can answer in a few words, for example whether they would like to see the idea.
 About five sentences in total. Short sentences, natural rhythm, like a person typing to another person.
 
@@ -57,13 +59,36 @@ Hard rules:
 - Exactly one question mark, on the ask.
 - The subject is 2 to 6 words, lower case except names, specific to them, and makes them curious without tricking them.
 - Use "you" and "your" more than "I" and "my". Do not start the first sentence with "I" or "My name".
-- Do not claim you looked at their website, built anything for them, or know anything about them beyond the facts.
+- Do not claim you built anything for them or know anything about them beyond the facts. Only when "Public check"
+  facts are listed above may you say you ran a quick public check of their site, and then only mention what is listed.
 - Write like a person: plain words, short sentences. No dashes of any kind. No exclamation marks. No emojis.
 - Avoid: "I hope this email finds you well", "not just X but Y", "let's dive in", "elevate", "seamless", "robust",
   "game changer", "unlock", "leverage", "cutting edge", any urgency or discount.
-- Include the portfolio link once if it is given.
+- {link_rule}
 {extra}
 Reply with JSON only: {{"subject": "<2 to 6 words, honest, no Re: or Fwd:>", "body": "<the email>"}}"""
+
+
+AUDIT_RULE = ("Offer to send the evidence: say you ran a quick public check of their site and name at most ONE finding "
+              "from the Public check facts, in plain words a shop owner understands, never changing what it says. "
+              "Do not name more than one. The full report with evidence is attached below your email automatically.")
+LINK_RULE_AUDIT = "Do not write any link or URL: a link to the full report is added automatically below the email."
+
+
+def audit_prompt_part(lead):
+    """(verified public-check facts for the prompt, whether a report link will be attached).
+
+    A website that already passes every check is skipped: with 5 emails a day, spend them on businesses
+    where the evidence shows something to fix.
+    """
+    try:
+        data = audit.get_audit(lead)
+    except Exception:  # pylint: disable=broad-except
+        logger.exception('Public check failed for lead %s; writing without it', lead.pk)
+        return '', False
+    if data and data['kind'] == 'website' and not audit.has_findings(data):
+        raise SkipLead('Their website already passes every check, so there is nothing to offer.')
+    return audit.prompt_facts(lead)
 
 
 class SkipLead(Exception):
@@ -139,12 +164,15 @@ def write_draft_text(lead, attempts=3):
     sender = settings.OUTREACH_FROM_NAME or 'Zubair'
     extra = ''
     research_facts, greeting = research_prompt_parts(lead)
+    audit_facts, linked = audit_prompt_part(lead)
     facts = playbook.lead_facts(lead)
     for _ in range(attempts):
         prompt = WRITE_PROMPT.format(
             sender=sender, category=lead.category or 'local business', location=lead.location or 'your area',
-            portfolio=settings.OUTREACH_PORTFOLIO_URL or 'none', extra=extra,
-            research_facts=research_facts, greeting=greeting,
+            portfolio='none' if linked else (settings.OUTREACH_PORTFOLIO_URL or 'none'), extra=extra,
+            research_facts=research_facts, greeting=greeting, audit_facts=audit_facts,
+            audit_rule=AUDIT_RULE if linked else 'Never claim you already ran a check or found a problem.',
+            link_rule=LINK_RULE_AUDIT if linked else 'Include the portfolio link once if it is given.',
             services=", ".join(settings.OUTREACH_SERVICES) or "website design",
         )
         result = gemini.generate(prompt, json_output=True, temperature=0.7)

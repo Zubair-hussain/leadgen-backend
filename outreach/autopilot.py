@@ -24,7 +24,7 @@ from leadgen import gemini
 from leads.models import Lead
 from leads.regions import region_of
 
-from . import compliance
+from . import audit, compliance
 from .models import OutreachMessage, SendThrottle
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,8 @@ def draftable_leads(user, limit):
              .exclude(outreach_messages__isnull=False)
              .order_by('-created_at')[:limit * 10])
     result = []
+    # Free-builder and social-only sites first: they have the clearest gap, and an email address we can reach.
+    leads = sorted(leads, key=lambda lead: 0 if audit.site_kind(lead.link) == 'free_builder' else 1)
     for lead in leads:
         country = compliance.lead_country(lead)
         if not region_of(country) or country in blocked:

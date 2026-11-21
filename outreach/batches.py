@@ -13,7 +13,7 @@ from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from . import ai, humanizer, mailer, playbook, research
+from . import ai, audit, humanizer, mailer, playbook, research
 from .models import OutreachBatch, OutreachMessage
 from .services import final_body, mark_queued, normalize, preflight
 
@@ -117,7 +117,9 @@ def build_batch_notification(batch):
         found = research.LeadResearch.objects.filter(lead_id=message.lead_id).first() if message.lead_id else None
         graded = playbook.score_message(message)
         grade = f"   Playbook score {graded['score']}/100" + (f": {graded['notes'][0]}" if graded['notes'] else '')
+        report = audit.existing_url(message.lead) if message.lead_id else ''
         lines += [f"{index}. To: {message.to_email}  [{status}]", f"   {research.summary_line(found)}", grade,
+                  *([f"   Free check they will receive: {report}"] if report else []),
                   f"   Subject: {message.subject}",
                   "   " + preview[:500].replace("\n", "\n   ") + ("..." if len(preview) > 500 else ""), ""]
     lines += ["Review and approve all, drop individual emails, or reject everything:", batch_url(batch), ""]

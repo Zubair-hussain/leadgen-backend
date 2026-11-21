@@ -10,7 +10,7 @@ from django.utils import timezone
 from leads.models import Lead
 
 from . import mailer
-from .models import OutreachMessage, SendThrottle, Suppression
+from .models import LeadAudit, OutreachMessage, SendThrottle, Suppression
 
 logger = logging.getLogger(__name__)
 Status = OutreachMessage.Status
@@ -65,6 +65,10 @@ def collect(now):
         'failed': messages.filter(status=Status.FAILED, updated_at__gte=start, updated_at__lt=now).count(),
         'waiting': messages.filter(status__in=(Status.DRAFT, Status.QUEUED)).count(),
         'per_day': [(day, per_day.get(day, 0)) for day in days],
+        'audits': LeadAudit.objects.filter(checked_at__gte=start, checked_at__lt=now).count(),
+        'no_website': list(Lead.objects.filter(email__isnull=True, created_at__gte=start, created_at__lt=now)
+                           .order_by('-created_at').values_list('problem_statement', 'phone', 'location')[:10]),
+        'no_website_count': Lead.objects.filter(email__isnull=True, created_at__gte=start, created_at__lt=now).count(),
         'all_time_sent': messages.filter(status=Status.SENT, dry_run=False).count(),
     }
     stats['reply_rate'] = round(100 * replies / stats['sent_first'], 1) if stats['sent_first'] else 0.0
@@ -114,6 +118,13 @@ def build(stats):
     lines += ['', 'Sent per day:']
     lines += [f"  {DAY_NAMES[day.weekday()]} {day.strftime('%d %b')}: {count}" for day, count in stats['per_day']]
     lines += ['', f"All-time emails sent: {stats['all_time_sent']}"]
+    lines += ['', f"Free site checks built this week: {stats['audits']}"]
+    if stats['no_website_count']:
+        lines += ['', f"Businesses with NO website of their own: {stats['no_website_count']} "
+                      '(no email exists for them, so call or message them yourself):']
+        for statement, phone, location in stats['no_website']:
+            name = statement.split('. ')[0].replace('Local business: ', '')
+            lines.append(f'  - {name} | {phone} | {location[:60]}')
     notes = health_notes(stats)
     if notes:
         lines += ['', 'Worth a look:'] + [f'  - {n}' for n in notes]

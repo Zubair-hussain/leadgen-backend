@@ -318,6 +318,12 @@ OUTREACH_AUTOPILOT_HOUR = int(os.getenv('OUTREACH_AUTOPILOT_HOUR', '7'))
 OUTREACH_SEND_TIMEZONE = os.getenv('OUTREACH_SEND_TIMEZONE', '').strip()
 # What you offer and where people book a call. Shown in the signature card; Gemini picks the best-fitting service.
 OUTREACH_BOOKING_URL = os.getenv('OUTREACH_BOOKING_URL', 'https://calendly-booking-navy.vercel.app/')
+# Public https address used in email links (report page, unsubscribe). A custom domain such as
+# https://check.zubairhussain.xyz (added in Vercel) looks better to spam filters than *.vercel.app.
+OUTREACH_PUBLIC_URL = os.getenv('OUTREACH_PUBLIC_URL', '').strip().rstrip('/')
+# Optional JSON list that replaces the default packages on the report page, e.g.
+# [{"name":"Fix & Secure","tag":"Existing site","items":["..."],"price":"$450"}]
+OUTREACH_PACKAGES = os.getenv('OUTREACH_PACKAGES', '')
 OUTREACH_SERVICES = env_list('OUTREACH_SERVICES', 'Website security checks,Design & layout,SEO')
 # Weekly report emailed to OUTREACH_NOTIFY_EMAIL. Weekday: 0 = Monday ... 6 = Sunday.
 OUTREACH_WEEKLY_REPORT_ENABLED = env_bool('OUTREACH_WEEKLY_REPORT_ENABLED', True)

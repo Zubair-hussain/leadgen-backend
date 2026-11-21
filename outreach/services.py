@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from leads.services import EmailVerifier
 
-from . import branding, compliance, humanizer, mailer, playbook, research, unsubscribe
+from . import audit, branding, compliance, humanizer, mailer, playbook, research, unsubscribe
 from .models import OutreachMessage, SendThrottle, Suppression
 
 logger = logging.getLogger(__name__)
@@ -242,10 +242,11 @@ def process_queue(now=None):
             else:
                 lead = message.lead
                 unsubscribe_url = unsubscribe.url_for(message)
+                report_url = audit.existing_url(lead) if lead and not message.parent_id else ''
                 text, html = branding.compose(
                     message.subject, message.body,
                     region=compliance.message_region(message), source=lead.source if lead else '',
-                    unsubscribe_url=unsubscribe_url)
+                    unsubscribe_url=unsubscribe_url, audit_url=report_url)
                 message_id, thread_id = mailer.send_message(
                     normalize(message.to_email), message.subject, text, html=html,
                     message_id=message.rfc_message_id, unsubscribe_url=unsubscribe_url, **thread_headers(message),
