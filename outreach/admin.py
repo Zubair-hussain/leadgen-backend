@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import OutreachMessage, SendThrottle, Suppression
+from .models import LeadAudit, OutreachMessage, SendThrottle, Suppression
 
 
 @admin.register(OutreachMessage)
@@ -19,3 +19,10 @@ class SuppressionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(SendThrottle)
+
+
+@admin.register(LeadAudit)
+class LeadAuditAdmin(admin.ModelAdmin):
+    list_display = ('lead', 'kind', 'checked_at')
+    list_filter = ('kind',)
+    readonly_fields = ('data',)

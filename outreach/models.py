@@ -58,6 +58,23 @@ class LeadResearch(models.Model):
         return f"{self.lead_id}: {self.status}"
 
 
+class LeadAudit(models.Model):
+    """A read-only public check of a lead's website (or online presence), kept so the evidence never changes
+    between the email and the day they open the report."""
+
+    class Kind(models.TextChoices):
+        WEBSITE = 'website', 'Website check'
+        PRESENCE = 'presence', 'Online presence (no own website)'
+
+    lead = models.OneToOneField(Lead, on_delete=models.CASCADE, related_name='audit')
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.WEBSITE)
+    data = models.JSONField(default=dict, blank=True)
+    checked_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.lead_id}: {self.kind} {self.data.get('score', '?')}/100"
+
+
 class OutreachMessage(models.Model):
     """One personalised email to one lead, gated by human approval."""
 
