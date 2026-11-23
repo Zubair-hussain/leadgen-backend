@@ -176,15 +176,15 @@ def security_checks(url, final_url, response):
         ('strict-transport-security', 'HSTS header (tells browsers to always use https)',
          'Without it a visitor on public Wi-Fi can be silently downgraded to http.',
          'Send  Strict-Transport-Security: max-age=31536000; includeSubDomains',
-         'the site is missing the setting that keeps visitors on its secure version (HSTS)'),
+         'the site does not send an HSTS header, so browsers are not told to always use the secure version'),
         ('x-content-type-options', 'X-Content-Type-Options header',
          'Stops browsers guessing file types, a trick used to run uploaded files as scripts.',
          'Send  X-Content-Type-Options: nosniff',
-         'the site is missing a standard browser safety header (X-Content-Type-Options)'),
+         'the site does not send the X-Content-Type-Options header'),
         ('referrer-policy', 'Referrer-Policy header',
          'Controls how much of your visitors\' browsing trail is leaked to other sites.',
          'Send  Referrer-Policy: strict-origin-when-cross-origin',
-         'the site is missing a visitor-privacy header (Referrer-Policy)'),
+         'the site does not send a Referrer-Policy header'),
     )
     for name, title, why, fix, plain in wanted:
         if name == 'strict-transport-security' and not https:

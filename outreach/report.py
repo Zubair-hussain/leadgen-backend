@@ -9,8 +9,9 @@ from django.utils import timezone
 
 from leads.models import Lead
 
-from . import mailer
-from .models import LeadAudit, OutreachMessage, SendThrottle, Suppression
+from . import mailer, research
+from .batches import batch_url
+from .models import LeadAudit, OutreachBatch, OutreachMessage, SendThrottle, Suppression
 
 logger = logging.getLogger(__name__)
 Status = OutreachMessage.Status
@@ -66,6 +67,14 @@ def collect(now):
         'waiting': messages.filter(status__in=(Status.DRAFT, Status.QUEUED)).count(),
         'per_day': [(day, per_day.get(day, 0)) for day in days],
         'audits': LeadAudit.objects.filter(checked_at__gte=start, checked_at__lt=now).count(),
+        'ai_written_week': messages.filter(parent__isnull=True, created_at__gte=start, created_at__lt=now).count(),
+        'ai_written_total': messages.filter(parent__isnull=True).count(),
+        'sent_list': [(research.business_name(m.lead) if m.lead_id else '', m.to_email, m.subject)
+                      for m in real.filter(parent__isnull=True).select_related('lead').order_by('sent_at')[:30]],
+        'held': [(m.to_email, m.hold_reason) for m in
+                 messages.filter(status=Status.DRAFT).exclude(hold_reason='').order_by('-updated_at')[:8]],
+        'held_links': [batch_url(b) for b in
+                       OutreachBatch.objects.filter(status=OutreachBatch.Status.HELD).order_by('-created_at')[:3]],
         'no_website': list(Lead.objects.filter(email__isnull=True, created_at__gte=start, created_at__lt=now)
                            .order_by('-created_at').values_list('problem_statement', 'phone', 'location')[:10]),
         'no_website_count': Lead.objects.filter(email__isnull=True, created_at__gte=start, created_at__lt=now).count(),
@@ -118,7 +127,16 @@ def build(stats):
     lines += ['', 'Sent per day:']
     lines += [f"  {DAY_NAMES[day.weekday()]} {day.strftime('%d %b')}: {count}" for day, count in stats['per_day']]
     lines += ['', f"All-time emails sent: {stats['all_time_sent']}"]
-    lines += ['', f"Free site checks built this week: {stats['audits']}"]
+    lines += ['', f"Written by the AI this week: {stats['ai_written_week']} first emails "
+                  f"({stats['ai_written_total']} since the start)",
+              f"Free site checks built this week: {stats['audits']}"]
+    if stats['sent_list']:
+        lines += ['', 'Emails sent this week:']
+        lines += [f"  - {name or 'business'} | {to} | {subject[:50]}" for name, to, subject in stats['sent_list']]
+    if stats['held']:
+        lines += ['', f"Held back for your decision ({len(stats['held'])}): the safety checks were not certain."]
+        lines += [f"  - {to}: {reason[:110]}" for to, reason in stats['held']]
+        lines += ['  Review and approve them here:'] + [f'  {link}' for link in stats['held_links']]
     if stats['no_website_count']:
         lines += ['', f"Businesses with NO website of their own: {stats['no_website_count']} "
                       '(no email exists for them, so call or message them yourself):']

@@ -299,6 +299,9 @@ OUTREACH_REVIEW_BASE_URL = os.getenv('OUTREACH_REVIEW_BASE_URL', 'http://localho
 OUTREACH_REVIEW_LINK_DAYS = int(os.getenv('OUTREACH_REVIEW_LINK_DAYS', '7'))
 # One review email + one approval per batch of drafts.
 OUTREACH_BATCH_REVIEW = env_bool('OUTREACH_BATCH_REVIEW', True)
+# False = no review or "[Auto-send]" emails at all. Drafts that pass every check are sent on their own, and the
+# Sunday report lists everything that was sent or held back (with a review link for the held ones).
+OUTREACH_REVIEW_EMAILS = env_bool('OUTREACH_REVIEW_EMAILS', True)
 OUTREACH_BATCH_QUIET_SECONDS = int(os.getenv('OUTREACH_BATCH_QUIET_SECONDS', '120'))
 OUTREACH_BATCH_MAX = int(os.getenv('OUTREACH_BATCH_MAX', '100'))
 # If you do not answer in time, emails that pass EVERY check are sent; anything uncertain is held.

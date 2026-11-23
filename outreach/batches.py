@@ -96,6 +96,9 @@ def create_pending_batches(now=None):
 # --- emails to the admin ------------------------------------------------------
 
 def _send_admin_email(subject, body):
+    if not settings.OUTREACH_REVIEW_EMAILS:
+        logger.info("Quiet mode: not emailing '%s' (it appears in the Sunday report)", subject[:80])
+        return 'quiet'
     if not mailer.is_configured() or not settings.OUTREACH_NOTIFY_EMAIL:
         return f'{mailer.transport()}-not-configured'
     try:
@@ -137,7 +140,7 @@ def build_batch_notification(batch):
 def notify_batch(batch):
     subject, body = build_batch_notification(batch)
     result = _send_admin_email(subject, body)
-    if result == 'sent':
+    if result in ('sent', 'quiet'):  # quiet mode counts as notified: the Sunday report tells you everything
         batch.notified_at, batch.notify_error = timezone.now(), ''
     else:
         batch.notify_error = result[:500]

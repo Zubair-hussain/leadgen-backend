@@ -1,6 +1,7 @@
 """Gemini helpers: an independent safety reviewer and a draft writer."""
 import json
 import logging
+import re
 
 from django.conf import settings
 
@@ -18,6 +19,9 @@ Answer "approve" ONLY if every statement is true:
 - It reads like a normal personal business email, not a mass mailing or newsletter.
 - It makes no false, exaggerated or unverifiable claims (for example, saying the sender already reviewed the
   recipient's website, built them something, or tested anything, unless the email text itself shows that happened).
+  EXCEPTION: when the recipient facts contain "verified_public_check", our own read-only check of their site REALLY
+  ran. The email may then say a quick public check was done and may mention those findings; a link to the full
+  report with the evidence is attached automatically below the email. Do not count that as an unverifiable claim.
 - It has no fake urgency, no pressure, no misleading subject, no spam wording, no offensive or risky content.
 - It is addressed to a business, makes one clear low-pressure request, and is polite.
 - It is relevant to the recipient's business shown in the facts.
@@ -120,8 +124,20 @@ def research_prompt_parts(lead):
     lines.append('- They already have a website. Never say they lack one.' if data.get('has_website')
                  else '- They have no website listed on Google.')
     lines.append('- You may mention at most ONE of these facts, exactly as given.')
-    greeting = '"Hi ' + data['name'] + ' team,"' if data.get('name') else '"Hi,"'
+    short = re.sub(r'\s*\([^)]*\)', '', data.get('name') or '').strip()
+    greeting = '"Hi ' + short + ' team,"' if short else '"Hi,"'
     return '\n'.join(lines), greeting
+
+
+def verified_check(message):
+    """The stored public-check findings for this lead (what really ran), or None. Never fetches anything."""
+    from .models import LeadAudit
+
+    stored = LeadAudit.objects.filter(lead_id=message.lead_id).first() if message.lead_id else None
+    if stored is None or not audit.has_findings(stored.data):
+        return None
+    return {'checked_at': stored.data.get('checked_at', '')[:10], 'site': stored.data.get('url', ''),
+            'findings': stored.data.get('facts', [])}
 
 
 def review_email(message):
@@ -132,9 +148,11 @@ def review_email(message):
     """
     if not gemini.is_configured():
         return False, 'Gemini is not configured, so the email could not be double-checked.'
-    prompt = REVIEW_PROMPT.format(
-        facts=json.dumps(lead_facts(message)), subject=message.subject, body=message.body,
-    )
+    facts = lead_facts(message)
+    checked = verified_check(message)
+    if checked:
+        facts['verified_public_check'] = checked
+    prompt = REVIEW_PROMPT.format(facts=json.dumps(facts), subject=message.subject, body=message.body)
     try:
         result = gemini.generate(prompt, json_output=True, temperature=0)
     except gemini.GeminiError as exc:

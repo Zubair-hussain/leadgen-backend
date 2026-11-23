@@ -228,6 +228,7 @@ Every push to `main` deploys automatically.
 | `OUTREACH_AUTOPILOT_ENABLED` / `_OWNER` | `True` / `you@gmail.com` | daily hunt + drafts, owner account |
 | `OUTREACH_AUTOPILOT_TARGETS` | `dentists\|Austin, TX; cafes\|Melbourne, VIC` | one target per day, rotating |
 | `OUTREACH_AUTOPILOT_TIMEZONE` / `_HOUR` / `_DRAFTS_PER_DAY` | `Asia/Karachi` / `7` / `6` | when it starts, how many drafts |
+| `OUTREACH_REVIEW_EMAILS` | `False` | `False` = silent mode: no review or [Auto-send] emails. Drafts that pass every check go out on their own; the Sunday report lists everything sent and everything held back, with a review link |
 | `OUTREACH_AUTO_SEND_ENABLED` / `_AFTER_HOURS` | `True` / `3` | release passing drafts if you do not answer |
 | `OUTREACH_SENDER_ADDRESS` | `Pakistan` | printed in every email (CAN-SPAM wants a full postal address) |
 | `OUTREACH_BOOKING_URL` / `OUTREACH_SERVICES` | `https://…` / `Website security checks,Design & layout,SEO` | signature card |
