@@ -154,7 +154,9 @@ def priority(message):
             points += 5
     domain = (message.to_email or '').rsplit('@', 1)[-1].lower()
     if domain in settings.OUTREACH_FREEMAIL_DOMAINS:
-        points -= 10
+        from .ownership import is_confirmed
+
+        points += 20 if is_confirmed(message.lead) else -10  # a proven owner replies most; an unproven one least
     if not message.sequence_step:
         points += score_message(message)['score'] // 10
     return points

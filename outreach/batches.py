@@ -13,7 +13,7 @@ from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from . import ai, audit, humanizer, mailer, playbook, research
+from . import ai, audit, humanizer, mailer, ownership, playbook, research
 from .models import OutreachBatch, OutreachMessage
 from .services import final_body, mark_queued, normalize, preflight
 
@@ -213,8 +213,9 @@ def unsure_reason(message):
     if humanizer.check(message.subject, message.body):
         return 'Humanizer check has findings, so a person should read it first.'
     domain = normalize(message.to_email).rsplit('@', 1)[-1]
-    if domain in settings.OUTREACH_FREEMAIL_DOMAINS:
-        return f'{domain} is a personal mailbox, which needs consent. Auto-send is for business domains only.'
+    if domain in settings.OUTREACH_FREEMAIL_DOMAINS and not ownership.is_confirmed(message.lead):
+        return (f'{domain} is a personal mailbox and it is not confirmed as the business owner\'s, '
+                'so a person should look first.')
     if len(message.body.split()) > settings.OUTREACH_MAX_WORDS:
         return 'Email is longer than the word limit.'
     graded = playbook.score_message(message)

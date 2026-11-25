@@ -7,7 +7,7 @@ from django.conf import settings
 
 from leadgen import gemini
 
-from . import audit, humanizer, playbook, research
+from . import audit, humanizer, ownership, playbook, research
 from .models import OutreachMessage
 
 logger = logging.getLogger(__name__)
@@ -182,6 +182,10 @@ def write_draft_text(lead, attempts=3):
     sender = settings.OUTREACH_FROM_NAME or 'Zubair'
     extra = ''
     research_facts, greeting = research_prompt_parts(lead)
+    if ownership.is_freemail(lead):
+        confirmed, why = ownership.confirm(lead)
+        if not confirmed:
+            raise SkipLead(f'Personal address not confirmed as the owner\'s: {why}.')
     audit_facts, linked = audit_prompt_part(lead)
     facts = playbook.lead_facts(lead)
     for _ in range(attempts):

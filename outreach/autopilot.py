@@ -24,7 +24,7 @@ from leadgen import gemini
 from leads.models import Lead
 from leads.regions import region_of
 
-from . import audit, compliance
+from . import audit, compliance, ownership
 from .models import OutreachMessage, SendThrottle
 
 logger = logging.getLogger(__name__)
@@ -109,7 +109,13 @@ def draftable_leads(user, limit):
              .order_by('-created_at')[:limit * 10])
     result = []
     # Free-builder and social-only sites first: they have the clearest gap, and an email address we can reach.
-    leads = sorted(leads, key=lambda lead: 0 if audit.site_kind(lead.link) == 'free_builder' else 1)
+    # Personal-mailbox owners (gmail.com etc.) reply the most, so they go first; each is proven to be the
+    # owner before anything is written (see ownership.py). Then free-builder sites, then the rest.
+    def rank(lead):
+        if ownership.is_freemail(lead):
+            return 0
+        return 1 if audit.site_kind(lead.link) == 'free_builder' else 2
+    leads = sorted(leads, key=rank)
     for lead in leads:
         country = compliance.lead_country(lead)
         if not region_of(country) or country in blocked:
